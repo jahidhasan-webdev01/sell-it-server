@@ -25,12 +25,29 @@ async function run() {
         const db = client.db('sell-it');
         const productCollection = db.collection('product');
 
-        app.post("/products", async (req, res) => {
+        app.post("/api/products", async (req, res) => {
             const productData = req.body;
-
             const result = await productCollection.insertOne(productData)
 
-            res.status(200).send(result)
+            res.status(200).send(result);
+        });
+
+        app.get("/api/products", async (req, res) => {
+            const query = {}
+
+            const sellerId = req.query.sellerId;
+            const status = req.query.status;
+            if (sellerId) {
+                query["sellerInfo.userId"] = sellerId;
+            }
+            if (status) {
+                query.status = status;
+            }
+
+            const cursor = await productCollection.find(query);
+            const result = await cursor.toArray();
+
+            res.status(200).send(result);
         })
 
         // await client.db("admin").command({ ping: 1 });
