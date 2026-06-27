@@ -26,6 +26,36 @@ async function run() {
         const productCollection = db.collection('product');
         const userCollection = db.collection('user');
 
+        // For all
+        app.get("/api/products", async (req, res) => {
+            try {
+                const query = { status: "APPROVED" };
+
+                const result = await productCollection.find(query).toArray();
+
+                return res.status(200).send(result);
+            } catch (error) {
+                return res.status(500).send("Server error");
+            }
+        });
+
+        // For all
+        app.get("/api/product-details", async (req, res) => {
+            const { productId } = req.query;
+
+            if (!productId) {
+                return res.status(400).send("Product ID is required");
+            }
+
+            const result = await productCollection.findOne({ _id: new ObjectId(productId) });
+
+            if (!result) {
+                return res.status(404).send("Product not found");
+            }
+
+            return res.status(200).send(result);
+        });
+
         // Seller only
         app.post("/api/add-products", async (req, res) => {
             const productData = req.body;
@@ -86,12 +116,13 @@ async function run() {
             return res.status(200).send(result);
         })
 
-        // Admin only 
+        // Admin only - Dashboard Stats
         app.get("/api/admin/dashboard-stats", async (req, res) => {
             try {
-                const totalUsers = await userCollection.estimatedDocumentCount();
+                const query = { role: { $ne: "ADMIN" } };
+
+                const totalUsers = await userCollection.countDocuments(query);
                 const totalProducts = await productCollection.estimatedDocumentCount();
-                // const totalOrders = await ordersCollection.estimatedDocumentCount();
 
                 return res.status(200).send({
                     totalUsers,
@@ -100,6 +131,7 @@ async function run() {
                 });
 
             } catch (error) {
+                console.error("Dashboard stats error:", error);
                 return res.status(500).send("Server error");
             }
         });
@@ -117,7 +149,7 @@ async function run() {
         })
 
         // Admin only
-        app.get("/api/products", async (req, res) => {
+        app.get("/api/admin/products", async (req, res) => {
             const cursor = await productCollection.find();
             const result = await cursor.toArray();
 
