@@ -86,6 +86,24 @@ async function run() {
             return res.status(200).send(result);
         })
 
+        // Admin only 
+        app.get("/api/admin/dashboard-stats", async (req, res) => {
+            try {
+                const totalUsers = await userCollection.estimatedDocumentCount();
+                const totalProducts = await productCollection.estimatedDocumentCount();
+                // const totalOrders = await ordersCollection.estimatedDocumentCount();
+
+                return res.status(200).send({
+                    totalUsers,
+                    totalProducts,
+                    totalOrders: 0
+                });
+
+            } catch (error) {
+                return res.status(500).send("Server error");
+            }
+        });
+
         // Admin only
         app.get("/api/users", async (req, res) => {
             const query = {
@@ -93,6 +111,14 @@ async function run() {
             };
 
             const cursor = await userCollection.find(query);
+            const result = await cursor.toArray();
+
+            res.status(200).send(result);
+        })
+
+        // Admin only
+        app.get("/api/products", async (req, res) => {
+            const cursor = await productCollection.find();
             const result = await cursor.toArray();
 
             res.status(200).send(result);
@@ -133,6 +159,40 @@ async function run() {
 
             res.status(200).send(result);
         })
+
+        // Admin only
+        app.patch("/api/update-product-status", async (req, res) => {
+            const { productId } = req.query;
+            const { status } = req.body;
+
+            const result = await productCollection.updateOne(
+                { _id: new ObjectId(productId) },
+                { $set: { status } }
+            );
+
+            if (result.matchedCount === 0) {
+                return res.status(404).send("Product not found");
+            }
+
+            return res.status(200).send(result);
+        });
+
+        // Admin only
+        app.delete("/api/admin/delete-product", async (req, res) => {
+            const { productId } = req.query;
+
+            if (!productId) {
+                return res.status(400).send("Product ID is required");
+            }
+
+            const result = await productCollection.deleteOne({ _id: new ObjectId(productId) });
+
+            if (result.deletedCount === 0) {
+                return res.status(404).send("Product not found");
+            }
+
+            return res.status(200).send(result);
+        });
 
         // await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
