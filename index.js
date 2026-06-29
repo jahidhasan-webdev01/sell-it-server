@@ -27,6 +27,7 @@ async function run() {
         const userCollection = db.collection('user');
         const categoryCollection = db.collection('categories');
         const paymentCollection = db.collection('payments');
+        const orderCollection = db.collection('orders');
 
         // Public
         app.get("/api/categories", async (req, res) => {
@@ -48,7 +49,7 @@ async function run() {
         app.post("/api/confirm-order", async (req, res) => {
             const data = req.body;
 
-            const result = await paymentCollection.insertOne(data);
+            const result = await orderCollection.insertOne(data);
 
             const productQuery = {
                 _id: new ObjectId(data.productId)
@@ -61,6 +62,54 @@ async function run() {
             const updateProductQuantity = await productCollection.updateOne(productQuery, updateDoc);
 
             res.status(201).send(result);
+        });
+
+        // Buyer only
+        app.get("/api/my-orders", async (req, res) => {
+            try {
+                const { userId } = req.query;
+
+                if (!userId) {
+                    return res.status(400).send({ message: "userId is required" });
+                }
+
+                const pipeline = [
+                    {
+                        $match: {
+                            "buyerInfo.userId": userId
+                        }
+                    },
+                    {
+                        $addFields: {
+                            productObjId: { $toObjectId: "$productId" }
+                        }
+                    },
+                    {
+                        $lookup: {
+                            from: "product",
+                            localField: "productObjId",
+                            foreignField: "_id",
+                            as: "productDetails"
+                        }
+                    },
+                    {
+                        $unwind: {
+                            path: "$productDetails",
+                            preserveNullAndEmptyArrays: true
+                        }
+                    },
+                    {
+                        $project: {
+                            productObjId: 0
+                        }
+                    }
+                ];
+
+                const result = await orderCollection.aggregate(pipeline).toArray();
+                res.status(200).send(result);
+            } catch (error) {
+                res.status(500).send({ error: error.message });
+            }
         });
 
         // For all
