@@ -25,15 +25,43 @@ async function run() {
         const db = client.db('sell-it');
         const productCollection = db.collection('product');
         const userCollection = db.collection('user');
-        const categoriesCollection = db.collection('categories');
+        const categoryCollection = db.collection('categories');
+        const paymentCollection = db.collection('payments');
 
         // Public
         app.get("/api/categories", async (req, res) => {
-            const cursor = await categoriesCollection.find();
+            const cursor = await categoryCollection.find();
             const result = await cursor.toArray();
 
             res.status(200).send(result);
         })
+
+        // Save paymenent info
+        app.post("/api/payment/success", async (req, res) => {
+            const data = req.body;
+
+            const result = await paymentCollection.insertOne(data);
+            res.status(201).send(result);
+        });
+
+        // Confirm Order & Update Stock
+        app.post("/api/confirm-order", async (req, res) => {
+            const data = req.body;
+
+            const result = await paymentCollection.insertOne(data);
+
+            const productQuery = {
+                _id: new ObjectId(data.productId)
+            };
+
+            const updateDoc = {
+                $inc: { stock: -1 }
+            };
+
+            const updateProductQuantity = await productCollection.updateOne(productQuery, updateDoc);
+
+            res.status(201).send(result);
+        });
 
         // For all
         app.get("/api/products", async (req, res) => {
