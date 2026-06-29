@@ -28,6 +28,7 @@ async function run() {
         const categoryCollection = db.collection('categories');
         const paymentCollection = db.collection('payments');
         const orderCollection = db.collection('orders');
+        const wishlistCollection = db.collection('wishlist');
 
         // Public
         app.get("/api/categories", async (req, res) => {
@@ -106,6 +107,96 @@ async function run() {
                 ];
 
                 const result = await orderCollection.aggregate(pipeline).toArray();
+                res.status(200).send(result);
+            } catch (error) {
+                res.status(500).send({ error: error.message });
+            }
+        });
+
+        // Buyer only
+        app.get("/api/payment-history", async (req, res) => {
+            try {
+                const { userId } = req.query;
+
+                if (!userId) {
+                    return res.status(400).send({ message: "userId is required" });
+                }
+
+                const result = await paymentCollection.find({ userId }).sort({ createdAt: -1 }).toArray();
+                
+                res.status(200).send(result);
+            } catch (error) {
+                res.status(500).send({ error: error.message });
+            }
+        });
+
+        // For all
+        app.post("/api/wishlist", async (req, res) => {
+            try {
+                const { userId, productId } = req.body;
+
+                const query = { userId, productId };
+                const existing = await wishlistCollection.findOne(query);
+
+                if (existing) {
+                    const result = await wishlistCollection.deleteOne(query);
+                    return res.status(200).send(result);
+                }
+
+                const result = await wishlistCollection.insertOne({
+                    userId,
+                    productId,
+                    createdAt: new Date()
+                });
+
+                res.status(200).send(result);
+            } catch (error) {
+                res.status(500).send({ error: error.message });
+            }
+        });
+
+        // For all
+        app.get("/api/wishlist", async (req, res) => {
+            try {
+                const { userId } = req.query;
+
+                if (!userId) {
+                    return res.status(400).send({ message: "userId is required" });
+                }
+
+                const pipeline = [
+                    {
+                        $match: {
+                            userId: userId
+                        }
+                    },
+                    {
+                        $addFields: {
+                            productObjId: { $toObjectId: "$productId" }
+                        }
+                    },
+                    {
+                        $lookup: {
+                            from: "product",
+                            localField: "productObjId",
+                            foreignField: "_id",
+                            as: "productDetails"
+                        }
+                    },
+                    {
+                        $unwind: {
+                            path: "$productDetails",
+                            preserveNullAndEmptyArrays: true
+                        }
+                    },
+                    {
+                        $project: {
+                            productObjId: 0
+                        }
+                    }
+                ];
+
+                const result = await db.collection("wishlist").aggregate(pipeline).toArray();
                 res.status(200).send(result);
             } catch (error) {
                 res.status(500).send({ error: error.message });
