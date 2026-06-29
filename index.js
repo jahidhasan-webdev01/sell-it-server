@@ -25,6 +25,15 @@ async function run() {
         const db = client.db('sell-it');
         const productCollection = db.collection('product');
         const userCollection = db.collection('user');
+        const categoriesCollection = db.collection('categories');
+
+        // Public
+        app.get("/api/categories", async (req, res) => {
+            const cursor = await categoriesCollection.find();
+            const result = await cursor.toArray();
+
+            res.status(200).send(result);
+        })
 
         // For all
         app.get("/api/products", async (req, res) => {
