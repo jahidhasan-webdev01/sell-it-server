@@ -466,6 +466,36 @@ async function run() {
             return res.status(200).send(result);
         });
 
+        // Admin only
+        app.get("/api/orders", async (req, res) => {
+            try {
+                const orders = await orderCollection.find().toArray();
+                return res.status(200).send(orders);
+            } catch (error) {
+                return res.status(500).send({ message: "Internal server error", error });
+            }
+        })
+
+        // Admin only
+        app.patch("/api/orders/:id", async (req, res) => {
+            try {
+                const { id } = req.params;
+                const { orderStatus } = req.body;
+
+                console.log(id, orderStatus);
+
+                const filter = { _id: new ObjectId(id) };
+                const updateDoc = {
+                    $set: { orderStatus: orderStatus }
+                };
+
+                const result = await orderCollection.updateOne(filter, updateDoc);
+                return res.status(200).send(result);
+            } catch (error) {
+                return res.status(500).send({ message: "Internal server error", error });
+            }
+        });
+
         // await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
