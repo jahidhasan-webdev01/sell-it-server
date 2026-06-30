@@ -145,6 +145,55 @@ async function run() {
             }
         });
 
+        // Buyer only
+        app.get("/api/buyer/dashboard-stats", async (req, res) => {
+            try {
+                const { userId } = req.query;
+
+                if (!userId) {
+                    return res.status(400).send({ message: "userId parameter is required" });
+                }
+
+                const orderCountQuery = { "buyerInfo.userId": userId };
+                const wishlistCountQuery = { userId: userId };
+
+                const orderCount = await orderCollection.countDocuments(orderCountQuery);
+                const wishlistCount = await wishlistCollection.countDocuments(wishlistCountQuery);
+
+                const recentOrders = await orderCollection
+                    .find(orderCountQuery)
+                    .sort({ _id: -1 })
+                    .limit(5)
+                    .toArray();
+
+                const enrichedOrders = [];
+
+                for (const order of recentOrders) {
+                    const product = await productCollection.findOne(
+                        { _id: new ObjectId(order.productId) },
+                        { projection: { title: 1, image: 1, price: 1 } }
+                    );
+
+                    enrichedOrders.push({
+                        _id: order._id,
+                        status: order.orderStatus,
+                        price: product?.price,
+                        productName: product ? product.title : "Product Unavailable",
+                        productImage: product ? product.image : null
+                    });
+                }
+
+                return res.status(200).send({
+                    orderCount,
+                    wishlistCount,
+                    recentOrders: enrichedOrders
+                });
+
+            } catch (error) {
+                return res.status(500).send({ error: "Server error" });
+            }
+        });
+
         // For all
         app.post("/api/wishlist", async (req, res) => {
             try {
@@ -323,7 +372,6 @@ async function run() {
                 });
 
             } catch (error) {
-                console.error("Dashboard stats error:", error);
                 return res.status(500).send("Server error");
             }
         });
