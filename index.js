@@ -357,6 +357,60 @@ async function run() {
             return res.status(200).send(result);
         })
 
+        // Seller only
+        app.get("/api/seller/orders", async (req, res) => {
+            try {
+                const { userId } = req.query;
+
+                const query = { "sellerInfo.userId": userId };
+
+                const orders = await orderCollection
+                    .find(query)
+                    .sort({ _id: -1 })
+                    .toArray();
+
+                const enrichedOrders = [];
+
+                for (const order of orders) {
+                    const product = await productCollection.findOne(
+                        { _id: new ObjectId(order.productId) },
+                        { projection: { title: 1, image: 1 } }
+                    );
+
+                    enrichedOrders.push({
+                        _id: order._id,
+                        price: order.price,
+                        status: order.orderStatus,
+                        productName: product ? product.title : "Product Unavailable",
+                        productImage: product ? product.image : null
+                    });
+                }
+
+                return res.status(200).send(enrichedOrders);
+
+            } catch (error) {
+                return res.status(500).send({ error: "Server error" });
+            }
+        });
+
+        // Seller only
+        app.patch("/api/seller/update-orders/:id", async (req, res) => {
+            try {
+                const { id } = req.params;
+                const { orderStatus } = req.body;
+
+                const filter = { _id: new ObjectId(id) };
+                const updateDoc = {
+                    $set: { orderStatus: orderStatus.toUpperCase() }
+                };
+
+                const result = await orderCollection.updateOne(filter, updateDoc);
+                return res.status(200).send(result);
+            } catch (error) {
+                return res.status(500).send({ message: "Internal server error", error });
+            }
+        });
+
         // Admin only - Dashboard Stats
         app.get("/api/admin/dashboard-stats", async (req, res) => {
             try {
@@ -477,12 +531,10 @@ async function run() {
         })
 
         // Admin only
-        app.patch("/api/orders/:id", async (req, res) => {
+        app.patch("/api/update-orders/:id", async (req, res) => {
             try {
                 const { id } = req.params;
                 const { orderStatus } = req.body;
-
-                console.log(id, orderStatus);
 
                 const filter = { _id: new ObjectId(id) };
                 const updateDoc = {
