@@ -38,6 +38,21 @@ async function run() {
             res.status(200).send(result);
         })
 
+        // public
+        app.get("/api/product/slug", async (req, res) => {
+            try {
+                const { slug } = req.query;
+                console.log(slug);
+
+                const query = { category: slug };
+                const result = await productCollection.find(query).toArray()
+
+                res.status(200).send(result);
+            } catch (error) {
+                res.status(500).send({ error: error.message });
+            }
+        });
+
         // Save paymenent info
         app.post("/api/payment/success", async (req, res) => {
             const data = req.body;
@@ -123,7 +138,7 @@ async function run() {
                 }
 
                 const result = await paymentCollection.find({ userId }).sort({ createdAt: -1 }).toArray();
-                
+
                 res.status(200).send(result);
             } catch (error) {
                 res.status(500).send({ error: error.message });
